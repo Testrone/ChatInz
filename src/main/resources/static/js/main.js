@@ -11,6 +11,8 @@ var connectingElement = document.querySelector('.connecting');
 var stompClient = null;
 var username = null;
 
+
+
 var colors = [
     '#2196F3', '#32c787', '#00BCD4', '#ff5652',
     '#ffc107', '#ff85af', '#FF9800', '#39bbb0'
@@ -31,8 +33,7 @@ function connect(event) {
     event.preventDefault();
 }
 
-
-function onConnected() {
+function onConnected(options) {
     // Subscribe to the Public Topic
     stompClient.subscribe('/topic/public', onMessageReceived);
 
@@ -41,16 +42,18 @@ function onConnected() {
         {},
         JSON.stringify({sender: username, type: 'JOIN'})
     )
-
+    getPreviousMessages();
     connectingElement.classList.add('hidden');
 }
 
-
-function onError(error) {
-    connectingElement.textContent = 'Não foi possível se conectar ao WebSocket! Atualize a página e tente novamente ou entre em contato com o administrador.';
-    connectingElement.style.color = 'red';
+function getPreviousMessages() {
+    stompClient.send("/app/chat.registry", {}, JSON.stringify({}));
 }
 
+function onError(error) {
+    connectingElement.textContent = 'wzielo i sie zjebalo';
+    connectingElement.style.color = 'red';
+}
 
 function send(event) {
     var messageContent = messageInput.value.trim();
@@ -68,42 +71,30 @@ function send(event) {
     event.preventDefault();
 }
 
-
 function onMessageReceived(payload) {
+    console.log('Message received:', payload);
     var message = JSON.parse(payload.body);
+    var messageElement = '';
 
-    var messageElement = document.createElement('li');
-
-    if(message.type === 'JOIN') {
-        messageElement.classList.add('event-message');
-        message.content = message.sender + ' joined!';
+    // Usunięcie warunku sprawdzającego pole isNew
+    if (message.type === 'JOIN') {
+        messageElement = '<li class="event-message">' + message.sender + ' joined!</li>';
     } else if (message.type === 'LEAVE') {
-        messageElement.classList.add('event-message');
-        message.content = message.sender + ' left!';
+        messageElement = '<li class="event-message">' + message.sender + ' left!</li>';
     } else {
-        messageElement.classList.add('chat-message');
-
-        var avatarElement = document.createElement('i');
-        var avatarText = document.createTextNode(message.sender[0]);
-        avatarElement.appendChild(avatarText);
-        avatarElement.style['background-color'] = getAvatarColor(message.sender);
-
-        messageElement.appendChild(avatarElement);
-
-        var usernameElement = document.createElement('span');
-        var usernameText = document.createTextNode(message.sender);
-        usernameElement.appendChild(usernameText);
-        messageElement.appendChild(usernameElement);
+        var avatarElement = '';
+        if (message.sender) {
+            avatarElement = '<i style="background-color:' + getAvatarColor(message.sender) + ';">' + message.sender[0] + '</i>';
+        }
+        var usernameElement = '<span>' + (message.sender ? message.sender : '') + '</span>';
+        var textElement = '<p>' + (message.content ? message.content : '') + '</p>';
+        messageElement = '<li class="chat-message">' + avatarElement + usernameElement + textElement + '</li>';
     }
 
-    var textElement = document.createElement('p');
-    var messageText = document.createTextNode(message.content);
-    textElement.appendChild(messageText);
-
-    messageElement.appendChild(textElement);
-
-    messageArea.appendChild(messageElement);
+    // Dodawanie wiadomości do elementu messageArea bez sprawdzania isNew
+    messageArea.innerHTML += messageElement;
     messageArea.scrollTop = messageArea.scrollHeight;
+
 }
 
 
@@ -119,3 +110,4 @@ function getAvatarColor(messageSender) {
 
 usernameForm.addEventListener('submit', connect, true)
 messageForm.addEventListener('submit', send, true)
+
